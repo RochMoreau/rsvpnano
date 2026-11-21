@@ -9,7 +9,7 @@ namespace screens::detail {
     } // namespace
 
     Action navigation(ui::Context& ui, Screen active, Screen& screen) {
-        if (ui.width() < 620 || ui.height() < 150 || ui.height() > 240) {
+        if (!wideLayout(ui)) {
             return Action::None;
         }
 
@@ -51,7 +51,7 @@ namespace screens::detail {
     }
 
     ui::Rect tabContent(ui::Context& ui) {
-        if (ui.width() >= 620 && ui.height() >= 150 && ui.height() <= 240) {
+        if (wideLayout(ui)) {
             const int16_t x = static_cast<int16_t>(kRailWidth + kContentGap);
             return {x, 8, static_cast<int16_t>(ui.width() - x - kRightInset), static_cast<int16_t>(ui.height() - 16)};
         }

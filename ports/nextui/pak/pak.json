@@ -1,0 +1,10 @@
+{
+  "name": "RSVP Nano",
+  "version": "0.2.0",
+  "type": "TOOL",
+  "description": "One-word-at-a-time (RSVP) e-book reader. EPUB, PDF, text and .rsvp books from the SD card.",
+  "author": "ionutdecebal (RSVP Nano), NextUI port",
+  "repo_url": "https://github.com/RochMoreau/rsvpnano",
+  "release_filename": "RSVP.Nano.pak.zip",
+  "platforms": ["tg5040"]
+}

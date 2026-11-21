@@ -1,0 +1,71 @@
+name: NextUI pak (TrimUI Brick)
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches: [main, nextui-port]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'tools/pio_gfx.py'
+      - 'ports/nextui/**'
+      - '.github/workflows/nextui.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'ports/nextui/**'
+      - '.github/workflows/nextui.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake zip libsdl2-dev imagemagick
+          pip install ziglang
+
+      - name: Cache third-party sources and the TrimUI SDK
+        uses: actions/cache@v4
+        with:
+          path: .nextui-cache
+          key: nextui-${{ hashFiles('ports/nextui/CMakeLists.txt', 'ports/nextui/build.sh') }}
+
+      - name: Desktop build
+        run: ports/nextui/build.sh desktop
+
+      - name: Smoke test (headless)
+        run: |
+          mkdir -p smoke/sdcard/library/books smoke/shots
+          cp companion/testdata/conversion/sample.epub smoke/sdcard/library/books/
+          SDL_VIDEODRIVER=dummy timeout 60 build/nextui-desktop/rsvpnano --data smoke/sdcard \
+            --script "wait 2000; shot smoke/shots/reader.bmp; press start; wait 800; shot smoke/shots/menu.bmp; \
+                      press down; press right; press a; wait 1200; shot smoke/shots/library.bmp; quit"
+          for f in smoke/shots/*.bmp; do convert "$f" "${f%.bmp}.png"; done
+          test -s smoke/sdcard/library/books/sample.rsvp
+
+      - name: TrimUI Brick pak
+        run: ports/nextui/build.sh pak
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: RSVP.Nano.pak
+          path: dist/RSVP.Nano.pak.zip
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nextui-screenshots
+          path: smoke/shots/*.png

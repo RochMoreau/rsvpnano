@@ -263,6 +263,71 @@ namespace ui {
         void beginFrame(uint8_t screen);
         void endFrame();
         void invalidate();
+
+        // Non-touch navigation (gamepads, keyboards): the interactive widgets claimed during the last
+        // completed frame, so a host can move a focus between them and synthesize touches.
+        enum class TargetRole : uint8_t {
+            Activate, // Tap to activate.
+            Adjust,   // Horizontal drag changes a value (sliders, rotaries).
+            Step,     // Decrement/increment areas at the left/right edges (steppers).
+            Carousel, // Horizontal list: dragging by `valueX` px moves the selection one item.
+        };
+        struct Target {
+            Rect rect;
+            TargetRole role = TargetRole::Activate;
+            int16_t valueX = -1; // Adjust: x of the current value (slider knob); Carousel: item pitch.
+        };
+        // Declares a custom raw-touch widget to non-touch navigation. Does not draw or consume touches.
+        void navigationTarget(Rect rect, TargetRole role, int16_t value = -1) {
+            const Claim target = claim(Kind::Navigation, rect, combine(static_cast<uint32_t>(role), value));
+            if (target.index < kSlotCapacity) {
+                slots_[target.index].role = role;
+                slots_[target.index].valueX = value;
+            }
+        }
+        using FrameObserver = void (*)(const Context& context);
+        // Called at the end of every frame on the UI thread; nullptr disables.
+        static void setFrameObserver(FrameObserver observer) {
+            frameObserver_ = observer;
+        }
+        uint8_t screen() const {
+            return screen_;
+        }
+        template<typename Visit>
+        void forEachTarget(Visit&& visit) const {
+            for (size_t index = 0; index < slotCount_; ++index) {
+                const Slot& slot = slots_[index];
+                if (!slot.valid || slot.rect.w <= 0 || slot.rect.h <= 0)
+                    continue;
+                switch (slot.kind) {
+                case Kind::Touch:
+                    if (slot.signature == 0) // tap(rect, enabled = false)
+                        break;
+                    [[fallthrough]];
+                case Kind::Button:
+                case Kind::Card:
+                case Kind::Dock:
+                case Kind::Setting:
+                case Kind::Toggle:
+                case Kind::Tab:
+                case Kind::KeyboardInput:
+                    visit(Target{slot.rect, TargetRole::Activate});
+                    break;
+                case Kind::Slider:
+                case Kind::Rotary:
+                    visit(Target{slot.rect, TargetRole::Adjust, slot.valueX});
+                    break;
+                case Kind::Stepper:
+                    visit(Target{slot.rect, TargetRole::Step});
+                    break;
+                case Kind::Navigation:
+                    visit(Target{slot.rect, slot.role, slot.valueX});
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
         void prepareTextFont(std::string_view text, std::string_view textLocale = {}) const;
 
         void label(Rect rect, std::string_view text, uint8_t textSize = 2,
@@ -401,7 +466,8 @@ namespace ui {
             KeyboardInput,
             Custom,
             Opaque,
-            Touch
+            Touch,
+            Navigation
         };
 
         struct Slot {
@@ -409,12 +475,19 @@ namespace ui {
             uint32_t signature = 0;
             Kind kind = Kind::Custom;
             bool valid = false;
+            int16_t valueX = -1;
+            TargetRole role = TargetRole::Activate;
         };
 
         struct Claim {
             size_t index = kSlotCapacity;
             bool changed = true;
         };
+
+        // Touch and navigation slots only describe input regions; every other kind owns pixels.
+        static constexpr bool paints(Kind kind) {
+            return kind != Kind::Touch && kind != Kind::Navigation;
+        }
 
         Claim claim(Kind kind, Rect rect, uint32_t signature);
         Arduino_Canvas* paintBuffer();
@@ -478,6 +551,7 @@ namespace ui {
         uint8_t screen_ = 0xFF;
         size_t gridPage_ = 0;
         bool rotaryDragging_ = false;
+        static inline FrameObserver frameObserver_ = nullptr;
         Rect rotaryRect_{};
         int16_t rotaryStartX_ = 0;
         int rotaryStartValue_ = 0;

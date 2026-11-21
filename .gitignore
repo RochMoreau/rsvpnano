@@ -34,3 +34,8 @@ compile_commands.json
 src/idf_component.yml
 benchmark/logs/
 benchmark/summary.md
+
+# NextUI port
+/.nextui-cache/
+/build/
+/dist/

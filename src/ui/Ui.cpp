@@ -275,7 +275,7 @@ namespace ui {
     void Context::endFrame() {
         for (size_t index = nextSlot_; index < slotCount_; ++index) {
             if (slots_[index].valid) {
-                if (slots_[index].kind != Kind::Touch)
+                if (paints(slots_[index].kind))
                     clear(slots_[index].rect);
                 slots_[index].valid = false;
             }
@@ -287,6 +287,8 @@ namespace ui {
         if (drew_)
             gfx_.flush();
         touchPending_ = false;
+        if (frameObserver_ != nullptr)
+            frameObserver_(*this);
     }
 
     void Context::invalidate() {
@@ -637,7 +639,15 @@ namespace ui {
         state = combine(state, static_cast<uint32_t>(maximum));
         state = combine(state, static_cast<uint32_t>(step));
         state = combine(state, activeRole);
-        if (claim(Kind::Slider, rect, state).changed) {
+        const Claim sliderClaim = claim(Kind::Slider, rect, state);
+        if (sliderClaim.index < kSlotCapacity)
+            slots_[sliderClaim.index].valueX =
+                maximum == minimum ? track.x
+                                   : static_cast<int16_t>(track.x
+                                                          + (static_cast<int32_t>(track.w - 1)
+                                                             * (displayedValue - minimum))
+                                                                / (maximum - minimum));
+        if (sliderClaim.changed) {
             const Rect bounds = rect;
             TextLayout labelText, valueLayout;
             if (labeled) {
@@ -1117,7 +1127,7 @@ namespace ui {
     Context::Claim Context::claim(Kind kind, Rect rect, uint32_t state) {
         rect = paintBounds(rect);
         const size_t index = nextSlot_++;
-        const bool clearNew = kind != Kind::Touch && (displayWriteAlignment() == 1 || kind == Kind::Custom);
+        const bool clearNew = paints(kind) && (displayWriteAlignment() == 1 || kind == Kind::Custom);
         if (index >= kSlotCapacity) {
             if (clearNew)
                 clear(rect);
@@ -1131,7 +1141,7 @@ namespace ui {
         }
         const bool changed = !slot.valid || structureChanged || slot.signature != state;
         if (changed) {
-            if (slot.valid && slot.kind != Kind::Touch && (!(slot.rect == rect) || kind == Kind::Touch)) {
+            if (slot.valid && paints(slot.kind) && (!(slot.rect == rect) || !paints(kind))) {
                 clear(slot.rect);
             }
             if (clearNew)

@@ -8,7 +8,7 @@ namespace screens {
         }
 
         const ui::Rect area = detail::tabContent(ui);
-        const bool wide = ui.width() >= 620 && ui.height() >= 150 && ui.height() <= 240;
+        const bool wide = detail::wideLayout(ui);
         ui::Column column{area, static_cast<int16_t>(wide ? 18 : 10)};
         const ui::Rect header = column.next(64);
         constexpr int16_t kHeaderActionSize = 40;

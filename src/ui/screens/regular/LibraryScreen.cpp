@@ -143,7 +143,7 @@ namespace screens {
             result = action;
         }
 
-        if (ui.width() < 620 || ui.height() < 150 || ui.height() > 240) {
+        if (!detail::wideLayout(ui)) {
             ui::Column column{detail::tabContent(ui), 4};
             const size_t visible = std::min<size_t>(items.size(), std::max<int16_t>(1, column.bounds.h / 36));
             for (size_t index = 0; index < visible; ++index) {
@@ -212,6 +212,8 @@ namespace screens {
             return result;
         }
 
+        ui.navigationTarget(viewport, ui::Context::TargetRole::Carousel,
+                            static_cast<int16_t>(spineWidth(selectedIndex_) + kGap));
         const int32_t contentLeft = -offset_;
         const size_t first = firstVisibleSpine(contentLeft, items.size());
         const size_t pastLast = pastLastVisibleSpine(contentLeft + viewport.w, items.size());

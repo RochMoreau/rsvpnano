@@ -176,6 +176,13 @@ to you:
 
 </details>
 
+### TrimUI Brick (NextUI)
+
+The same firmware also runs as a [NextUI](https://github.com/LoveRetro/NextUI) pak on the TrimUI
+Brick. It uses the Linux compatibility layer and SDL2 host in [`ports/nextui`](ports/nextui/README.md),
+and the D-pad and buttons drive the touch interface. See that README for how to install it, the
+controls and how to build it.
+
 ## RSVP Nano and Pocket Lines
 
 **RSVP Nano continues as the free, community-powered, experimental platform.** We’re
