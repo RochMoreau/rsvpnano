@@ -8,6 +8,7 @@
 
 #include "board/BoardAudio.h"
 #include "board/BoardConfig.h"
+#include "board/BoardIndicators.h"
 #include "board/BoardInput.h"
 #include "board/BoardPower.h"
 #include "board/BoardStorage.h"
@@ -159,6 +160,7 @@ void App::update(uint32_t nowMs) {
             Board::Audio::beep();
     }
     ReadingProgress::save(readerScreen_.session, prefs_, false, nowMs);
+    showIndicators();
 
     renderScreen(nowMs);
     if (!preparingTypography && !readerScreen_.session.playing && !companionApi_.active() && !usbTransfer_.active()
@@ -453,6 +455,10 @@ void App::handleInput(Input::ActionMask actions, uint32_t nowMs) {
     }
     if (Input::hasAction(actions, Input::ActionPowerOff)) {
         powerOff(nowMs);
+        return;
+    }
+    if (Input::hasAction(actions, Input::ActionSleep)) {
+        enterStandby(nowMs, true);
         return;
     }
     if (Input::hasAction(actions, Input::ActionStandby)) {
@@ -895,7 +901,7 @@ void App::runOtaCheck(bool install) {
         showTransientStatus("OTA", immediateUi_.text(UiText::CouldNotStart), {}, 1200, screens::Screen::Reader);
 }
 
-void App::enterStandby(uint32_t nowMs) {
+void App::enterStandby(uint32_t nowMs, bool screenOff) {
     if (companionApi_.active()) {
         companionApi_.end();
     } else {
@@ -903,7 +909,8 @@ void App::enterStandby(uint32_t nowMs) {
     }
     ReadingProgress::save(readerScreen_.session, prefs_, true, nowMs);
     ReadingLoop::pause(readerScreen_.session);
-    if (settingsStore_.settings().interface.screensaver == standby::Kind::screenOff) {
+    Board::Indicators::show({}); // The standby loop does not update them.
+    if (screenOff || settingsStore_.settings().interface.screensaver == standby::Kind::screenOff) {
         screen_ = screens::Screen::Standby;
         lightSleepFromStandby();
         return;
@@ -916,6 +923,35 @@ void App::enterStandby(uint32_t nowMs) {
     standbyEnteredMs_ = nowMs;
     screen_ = screens::Screen::Standby;
     renderScreen(nowMs);
+}
+
+void App::showIndicators() {
+    using Board::Indicators::Activity;
+    Board::Indicators::State state;
+    if (screen_ == screens::Screen::FocusSession) {
+        const focus::Session& session = focusScreen_.session();
+        const uint32_t nowMs = millis();
+        switch (session.phase()) {
+        case focus::Phase::Focus:
+            state = {Activity::Focus, session.progressPermille(nowMs)};
+            break;
+        case focus::Phase::Break:
+            state = {Activity::Break, session.progressPermille(nowMs)};
+            break;
+        case focus::Phase::Complete:
+            break;
+        default:
+            state = {Activity::FocusPaused, session.progressPermille(nowMs)};
+            break;
+        }
+    } else if (readerScreen_.session.playing) {
+        const size_t words = ReadingLoop::wordCount(readerScreen_.session);
+        state = {Activity::Reading,
+                 static_cast<uint16_t>(words > 1 ? static_cast<uint64_t>(readerScreen_.session.state.wordIndex) * 1000U
+                                                       / (words - 1)
+                                                 : 0)};
+    }
+    Board::Indicators::show(state);
 }
 
 void App::exitStandby(uint32_t nowMs) {

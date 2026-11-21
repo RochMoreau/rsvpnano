@@ -38,7 +38,8 @@ namespace screens {
     }
 
     bool FocusScreen::update(uint32_t nowMs) {
-        const focus::Orientation orientation = orientation_.update(nowMs);
+        const focus::Orientation orientation =
+            orientation_.available() ? orientation_.update(nowMs) : session_.manualOrientation();
         session_.update(nowMs, orientation);
         return session_.consumeCompletionCue();
     }

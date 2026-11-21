@@ -55,8 +55,8 @@ namespace screens {
 
             const focus::Timer& timer = timers_.timers[index];
             if (redraw) {
-                const uint16_t ink = ui.color(orientation_.available() ? ui::themes::ColorRole::Foreground
-                                                                       : ui::themes::ColorRole::Muted);
+                // Without an orientation sensor, sessions are turned by tapping the hourglass instead.
+                const uint16_t ink = ui.color(ui::themes::ColorRole::Foreground);
                 const uint16_t outline = ui.color(ui::themes::ColorRole::Outline);
                 constexpr int16_t glassWidth = 52;
                 constexpr int16_t roundsWidth = 36;
@@ -118,7 +118,7 @@ namespace screens {
                             rounds, 2, ink, ui::TextAlign::Center);
             }
 
-            const bool tapped = ui.tap(cell, orientation_.available());
+            const bool tapped = ui.tap(cell);
             const ui::Touch* touch = ui.touch();
             const bool held = writable_ && touch != nullptr && ui::hasTouch(*touch, ui::TouchHold)
                            && ui::contains(cell, touch->x, touch->y);
@@ -288,6 +288,9 @@ namespace screens {
                                  static_cast<int16_t>(area.w - (railWidth + gap) * 2), area.h};
         ui.steps({area.x, area.y, railWidth, area.h}, session_.round(), session_.rounds(), phaseRole);
         ui.hourglass(hourglass, session_.progressPermille(nowMs), paused, complete, phaseRole, reversed, time);
+        // Without an orientation sensor, tapping the hourglass turns it: start, pause or resume.
+        if (!orientation_.available() && ui.tap(hourglass, !complete))
+            session_.manualFlip();
         return ui.button({static_cast<int16_t>(area.x + area.w - railWidth), area.y, railWidth, area.h}, ">>");
     }
 

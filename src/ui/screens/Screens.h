@@ -143,6 +143,9 @@ namespace screens {
         const focus::Timers& timers() const {
             return timers_;
         }
+        const focus::Session& session() const {
+            return session_;
+        }
         void close();
 
     private:

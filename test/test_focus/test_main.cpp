@@ -127,10 +127,52 @@ void test_focus_session_requires_post_expiry_flip_and_handles_wraparound() {
     TEST_ASSERT_EQUAL(focus::Phase::Break, session.phase());
 }
 
+void test_focus_session_manual_flips_without_sensor() {
+    focus::Session session;
+    session.begin(shortTimer());
+    const auto step = [&](uint32_t nowMs) {
+        session.update(nowMs, session.manualOrientation());
+    };
+
+    step(0);
+    TEST_ASSERT_EQUAL(focus::Phase::WaitingFocus, session.phase());
+    session.manualFlip(); // start
+    step(1000);
+    TEST_ASSERT_EQUAL(focus::Phase::Focus, session.phase());
+    session.manualFlip(); // pause
+    step(21000);
+    TEST_ASSERT_EQUAL(focus::Phase::PausedFocus, session.phase());
+    TEST_ASSERT_EQUAL(40000, session.remainingMs(51000));
+    session.manualFlip(); // resume
+    step(51000);
+    TEST_ASSERT_EQUAL(focus::Phase::Focus, session.phase());
+
+    step(91000);
+    TEST_ASSERT_EQUAL(focus::Phase::WaitingBreak, session.phase());
+    TEST_ASSERT_TRUE(session.consumeCompletionCue());
+    step(95000); // waits for a tap, like a device waits to be turned over
+    TEST_ASSERT_EQUAL(focus::Phase::WaitingBreak, session.phase());
+    session.manualFlip();
+    step(96000);
+    TEST_ASSERT_EQUAL(focus::Phase::Break, session.phase());
+    step(156000);
+    TEST_ASSERT_EQUAL(focus::Phase::WaitingFocus, session.phase());
+    session.manualFlip();
+    step(157000);
+    TEST_ASSERT_EQUAL(focus::Phase::Focus, session.phase());
+    step(217000);
+    TEST_ASSERT_EQUAL(focus::Phase::Complete, session.phase());
+
+    session.begin(shortTimer()); // a new session waits again
+    step(300000);
+    TEST_ASSERT_EQUAL(focus::Phase::WaitingFocus, session.phase());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_focus_config_round_trip_and_validation);
     RUN_TEST(test_focus_session_flip_pause_and_completion);
     RUN_TEST(test_focus_session_requires_post_expiry_flip_and_handles_wraparound);
+    RUN_TEST(test_focus_session_manual_flips_without_sensor);
     return UNITY_END();
 }

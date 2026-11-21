@@ -71,7 +71,8 @@ private:
     void enterUsbTransfer(uint32_t nowMs);
     void exitUsbTransfer(screens::Screen destination = screens::Screen::Reader);
     void runOtaCheck(bool install);
-    void enterStandby(uint32_t nowMs);
+    void enterStandby(uint32_t nowMs, bool screenOff = false);
+    void showIndicators();
     void exitStandby(uint32_t nowMs);
     void lightSleepFromStandby();
     void powerOff(uint32_t nowMs);

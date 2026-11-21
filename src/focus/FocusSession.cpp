@@ -17,6 +17,26 @@ namespace focus {
         pausedRemainingMs_ = 0;
         targetPresentAtWaitStart_ = false;
         completionCuePending_ = false;
+        manualOrientation_ = Orientation::Flat;
+    }
+
+    void Session::manualFlip() {
+        switch (phase_) {
+        case Phase::WaitingFocus:
+        case Phase::WaitingBreak:
+            manualOrientation_ = waitTarget_ != Orientation::Unknown ? waitTarget_ : Orientation::ShortA;
+            break;
+        case Phase::Focus:
+        case Phase::Break:
+            manualOrientation_ = Orientation::Flat;
+            break;
+        case Phase::PausedFocus:
+        case Phase::PausedBreak:
+            manualOrientation_ = activeSide_;
+            break;
+        case Phase::Complete:
+            break;
+        }
     }
 
     void Session::update(uint32_t nowMs, Orientation orientation) {

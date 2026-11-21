@@ -22,6 +22,8 @@ namespace Input {
         ActionPreviousParagraph = 1U << 8,
         ActionNextParagraph = 1U << 9,
         ActionReaderSkip = ActionPreviousSentence | ActionNextSentence | ActionPreviousParagraph | ActionNextParagraph,
+        // Screen-off standby regardless of the screensaver setting (a handheld's power key).
+        ActionSleep = 1U << 10,
     };
 
     struct PressActions {

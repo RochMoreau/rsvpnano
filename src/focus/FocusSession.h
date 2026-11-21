@@ -42,6 +42,14 @@ namespace focus {
         uint16_t progressPermille(uint32_t nowMs) const;
         bool consumeCompletionCue();
 
+        // Boards without an orientation sensor: a tap stands in for turning the device. It starts a
+        // waiting phase, pauses a running one and resumes a paused one. Feed manualOrientation() to
+        // update() instead of a sensor reading.
+        void manualFlip();
+        Orientation manualOrientation() const {
+            return manualOrientation_;
+        }
+
     private:
         static bool shortSide(Orientation orientation);
         static Orientation opposite(Orientation orientation);
@@ -60,6 +68,7 @@ namespace focus {
         uint8_t rounds_ = 0;
         bool targetPresentAtWaitStart_ = false;
         bool completionCuePending_ = false;
+        Orientation manualOrientation_ = Orientation::Flat;
     };
 
 } // namespace focus
