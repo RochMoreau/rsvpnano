@@ -164,6 +164,17 @@ void NextUiNavigator::queueTap(int16_t x, int16_t y, uint32_t nowMs) {
     steps_.push_back({nowMs + kMinimumPressMs + kStepMs, false, x, y});
 }
 
+void NextUiNavigator::queueSwipe(int dx, int dy, uint32_t nowMs) {
+    constexpr int kDistance = 64; // Past the reader's 40 px swipe threshold.
+    const int16_t x = kPanelWidth / 2, y = kPanelHeight / 2;
+    steps_.push_back({nowMs, true, x, y});
+    for (int i = 1; i <= 4; ++i)
+        steps_.push_back({nowMs + static_cast<uint32_t>(i) * kStepMs, true,
+                          static_cast<int16_t>(x + dx * kDistance * i / 4), static_cast<int16_t>(y + dy * kDistance * i / 4)});
+    steps_.push_back({nowMs + 5 * kStepMs, false, static_cast<int16_t>(x + dx * kDistance),
+                      static_cast<int16_t>(y + dy * kDistance)});
+}
+
 void NextUiNavigator::queueNudge(int16_t fromX, int16_t toX, int16_t y, uint32_t nowMs) {
     steps_.push_back({nowMs, true, fromX, y});
     const int16_t middle = static_cast<int16_t>((fromX + toX) / 2);
@@ -192,8 +203,12 @@ void NextUiNavigator::directionPressed(uint32_t button, uint32_t nowMs) {
              focus_ ? focus_->rect.h : 0, focus_ ? static_cast<int>(focus_->role) : -1,
              focus_ ? focus_->valueX : -1);
     if (targets_.empty()) {
-        // Gesture screens (the reader): swipe from the centre like a finger would.
-        startDrag(button, dx, dy, kPanelWidth / 2, kPanelHeight / 2, nowMs);
+        // Gesture screens (the reader): swipe from the centre like a finger would. Left/Right keep
+        // dragging while held (scrubbing); Up/Down are one swipe each, repeated while held (speed).
+        if (dy != 0)
+            queueSwipe(0, dy, nowMs);
+        else
+            startDrag(button, dx, dy, kPanelWidth / 2, kPanelHeight / 2, nowMs);
         return;
     }
     if (focus_ && dx != 0 && focus_->role == ui::Context::TargetRole::Step) {
@@ -299,8 +314,9 @@ bool NextUiNavigator::update(uint32_t nowMs, uint32_t held) {
         }
     }
 
-    // 3. Swipes (shoulders anywhere; D-pad on gesture screens).
-    if (!busy && !pressing_ && !drag_.active) {
+    // 3. Swipes (shoulders on screens with widgets; D-pad on gesture screens). In the reader the
+    //    shoulders jump by sentence / paragraph instead (Input actions, see BoardPlatform.cpp).
+    if (!busy && !pressing_ && !drag_.active && !targets_.empty()) {
         if (pressed & ButtonL1)
             startDrag(ButtonL1, -1, 0, kPanelWidth / 2, kPanelHeight / 2, nowMs);
         else if (pressed & ButtonR1)
@@ -349,7 +365,8 @@ bool NextUiNavigator::update(uint32_t nowMs, uint32_t held) {
             fire = direction & (~direction + 1); // lowest set bit
             repeatButton_ = fire;
             nextRepeatMs_ = nowMs + kRepeatDelayMs;
-        } else if (repeatButton_ != 0 && (held & repeatButton_) && !targets_.empty()
+        } else if (repeatButton_ != 0 && (held & repeatButton_)
+                   && (!targets_.empty() || (repeatButton_ & (ButtonUp | ButtonDown)) != 0)
                    && static_cast<int32_t>(nowMs - nextRepeatMs_) >= 0) {
             fire = repeatButton_;
             nextRepeatMs_ = nowMs + kRepeatIntervalMs;

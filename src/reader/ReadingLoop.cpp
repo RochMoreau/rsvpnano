@@ -1039,6 +1039,20 @@ namespace ReadingLoop {
         seekTo(session, currentSentenceStart);
     }
 
+    void forwardSentence(ReadingSession& session) {
+        // Bounded so text without sentence punctuation cannot turn one press into a book-long scan.
+        constexpr size_t kMaxSentenceWords = 400;
+        const size_t count = wordCount(session);
+        if (count == 0)
+            return;
+
+        size_t wordIndex = std::min<size_t>(session.state.wordIndex, count - 1);
+        const size_t limit = std::min(count - 1, wordIndex + kMaxSentenceWords);
+        while (wordIndex < limit && !wordEndsSentenceAt(session, wordIndex))
+            ++wordIndex;
+        seekTo(session, std::min(wordIndex + 1, count - 1));
+    }
+
     void adjustWpm(settings::ReadingSettings& settings, int delta) {
         if (delta == 0)
             return;

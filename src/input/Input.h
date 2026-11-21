@@ -16,6 +16,12 @@ namespace Input {
         ActionPlayPause = 1U << 3,
         ActionStandby = 1U << 4,
         ActionPowerOff = 1U << 5,
+        // Reader navigation, for boards with spare buttons (e.g. a handheld's shoulder buttons).
+        ActionPreviousSentence = 1U << 6,
+        ActionNextSentence = 1U << 7,
+        ActionPreviousParagraph = 1U << 8,
+        ActionNextParagraph = 1U << 9,
+        ActionReaderSkip = ActionPreviousSentence | ActionNextSentence | ActionPreviousParagraph | ActionNextParagraph,
     };
 
     struct PressActions {

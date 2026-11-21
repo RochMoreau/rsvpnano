@@ -483,6 +483,37 @@ void test_rewind_sentence_ignores_abbreviation_periods(void) {
     TEST_ASSERT_EQUAL_STRING("Then", r.currentWord.c_str());
 }
 
+void test_forward_sentence_moves_to_next_sentence_start(void) {
+    ReadingSession r = makeReader(300, {"One", "two.", "Three", "four", "five.", "Six"});
+    ReadingLoop::seekTo(r, 3);
+    ReadingLoop::forwardSentence(r);
+    TEST_ASSERT_EQUAL(5u, r.state.wordIndex);
+    TEST_ASSERT_EQUAL_STRING("Six", r.currentWord.c_str());
+}
+
+void test_forward_sentence_from_sentence_end_moves_to_next_start(void) {
+    ReadingSession r = makeReader(300, {"One", "two.", "Three", "four."});
+    ReadingLoop::seekTo(r, 1);
+    ReadingLoop::forwardSentence(r);
+    TEST_ASSERT_EQUAL(2u, r.state.wordIndex);
+}
+
+void test_forward_sentence_clamps_at_book_end(void) {
+    ReadingSession r = makeReader(300, {"One", "two.", "Three", "four"});
+    ReadingLoop::seekTo(r, 2);
+    ReadingLoop::forwardSentence(r);
+    TEST_ASSERT_EQUAL(3u, r.state.wordIndex);
+    TEST_ASSERT_EQUAL_STRING("four", r.currentWord.c_str());
+}
+
+void test_forward_sentence_ignores_abbreviation_periods(void) {
+    ReadingSession r = makeReader(300, {"Mr.", "Smith", "arrived.", "Then", "left."});
+    ReadingLoop::seekTo(r, 0);
+    ReadingLoop::forwardSentence(r);
+    TEST_ASSERT_EQUAL(3u, r.state.wordIndex);
+    TEST_ASSERT_EQUAL_STRING("Then", r.currentWord.c_str());
+}
+
 // ---------------------------------------------------------------------------
 // Word count / word access
 // ---------------------------------------------------------------------------
@@ -563,6 +594,10 @@ int main(void) {
     RUN_TEST(test_rewind_sentence_at_sentence_start_moves_to_previous_sentence);
     RUN_TEST(test_rewind_sentence_clamps_at_book_start);
     RUN_TEST(test_rewind_sentence_ignores_abbreviation_periods);
+    RUN_TEST(test_forward_sentence_moves_to_next_sentence_start);
+    RUN_TEST(test_forward_sentence_from_sentence_end_moves_to_next_start);
+    RUN_TEST(test_forward_sentence_clamps_at_book_end);
+    RUN_TEST(test_forward_sentence_ignores_abbreviation_periods);
 
     RUN_TEST(test_word_at_returns_correct_word);
 

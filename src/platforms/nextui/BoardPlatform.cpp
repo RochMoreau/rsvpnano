@@ -97,6 +97,15 @@ namespace Board::Input {
         // Start is the Brick's play/pause key; the TrimUI (Menu) key opens the menu.
         if (held & ButtonStart)
             actions.shortPress |= ::Input::ActionPlayPause;
+        // Shoulders jump in the reader (menus ignore these and get swipes from the navigator instead).
+        if (held & ButtonL1)
+            actions.shortPress |= ::Input::ActionPreviousSentence;
+        if (held & ButtonR1)
+            actions.shortPress |= ::Input::ActionNextSentence;
+        if (held & ButtonL2)
+            actions.shortPress |= ::Input::ActionPreviousParagraph;
+        if (held & ButtonR2)
+            actions.shortPress |= ::Input::ActionNextParagraph;
         if (held & ButtonMenu) {
             actions.shortPress |= ::Input::ActionOpenMenu;
             actions.longPress |= ::Input::ActionPowerOff;

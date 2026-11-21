@@ -30,6 +30,8 @@ namespace ReadingLoop {
     void seekRelative(ReadingSession& session, size_t baseIndex, int steps);
     bool seekParagraph(ReadingSession& session, int steps);
     void rewindSentence(ReadingSession& session);
+    // Moves to the start of the next sentence (stays on the last word at the end of the book).
+    void forwardSentence(ReadingSession& session);
     void adjustWpm(settings::ReadingSettings& settings, int delta);
 
     std::string_view wordAt(const ReadingSession& session, size_t index);

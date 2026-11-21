@@ -15,8 +15,10 @@
 //    focused widget. Left/Right on a slider or stepper changes its value.
 //  * Holding A presses at the focus; the D-pad then drags (sliders, rotaries, swipes).
 //  * Screens without widgets (the RSVP reader): the D-pad swipes from the screen centre, the same
-//    gestures a finger makes (left/right scrub words, up/down change speed).
-//  * L1/R1 always swipe left/right and L2/R2 swipe down/up from the centre.
+//    gestures a finger makes (left/right scrub words while held, up/down change speed, repeating
+//    while held).
+//  * On screens with widgets L1/R1 swipe left/right and L2/R2 swipe down/up from the centre. In the
+//    reader they jump by sentence / paragraph instead (Input actions from BoardPlatform.cpp).
 class NextUiNavigator {
 public:
     void setTargets(const std::vector<ui::Context::Target>& targets, uint8_t screen);
@@ -52,6 +54,7 @@ private:
     void chooseFocus();
     void startDrag(uint32_t button, int dx, int dy, int16_t fromX, int16_t fromY, uint32_t nowMs);
     void queueTap(int16_t x, int16_t y, uint32_t nowMs);
+    void queueSwipe(int dx, int dy, uint32_t nowMs);
     void queueNudge(int16_t fromX, int16_t toX, int16_t y, uint32_t nowMs);
     void setContact(bool touched, float x, float y);
     void directionPressed(uint32_t button, uint32_t nowMs);

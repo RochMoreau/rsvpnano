@@ -36,7 +36,9 @@ namespace {
         {"A", "Hold to read, double-tap to play"},
         {"Start or X", "Play / pause"},
         {"Left/Right", "Step back / forward a word"},
-        {"Up/Down", "Reading speed"},
+        {"Up/Down", "Reading speed (hold to repeat)"},
+        {"L1 / R1", "Previous / next sentence"},
+        {"L2 / R2", "Previous / next paragraph"},
         {"B or Menu", "Open the menu"},
     };
 
@@ -46,7 +48,6 @@ namespace {
         {"B", "Back"},
         {"Left/Right", "Adjust a slider, change book"},
         {"L1 / R1", "Swipe left / right"},
-        {"L2 / R2", "Swipe down / up"},
     };
 
     constexpr Row kAnytime[] = {

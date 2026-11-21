@@ -9,6 +9,7 @@
 #include "board/BoardPower.h"
 #include "fonts/AlphaFont.h"
 #include "fonts/FontCatalog.h"
+#include "input/Input.h"
 #include "reader/ReadingLoop.h"
 #include "settings/SettingsModel.h"
 #include "settings/SettingsStore.h"
@@ -48,6 +49,8 @@ namespace screens {
         void handleTouch(ui::Context& ui, uint32_t nowMs, Preferences& preferences,
                          settings::SettingsStore& settingsStore);
         void toggle(Preferences& preferences, uint32_t nowMs);
+        // Jumps by sentence or paragraph (Input::ActionReaderSkip actions); playback keeps going.
+        void skip(Preferences& preferences, Input::ActionMask actions, uint32_t nowMs);
         void update(Preferences& preferences, uint32_t nowMs);
 
     private:

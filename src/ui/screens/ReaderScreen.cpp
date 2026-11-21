@@ -951,6 +951,26 @@ namespace screens {
             start(nowMs, true);
     }
 
+    void ReaderScreen::skip(Preferences& preferences, Input::ActionMask actions, uint32_t nowMs) {
+        const size_t before = session.state.wordIndex;
+        if (Input::hasAction(actions, Input::ActionPreviousSentence))
+            ReadingLoop::rewindSentence(session);
+        else if (Input::hasAction(actions, Input::ActionNextSentence))
+            ReadingLoop::forwardSentence(session);
+        else if (Input::hasAction(actions, Input::ActionPreviousParagraph))
+            ReadingLoop::seekParagraph(session, -1);
+        else if (Input::hasAction(actions, Input::ActionNextParagraph))
+            ReadingLoop::seekParagraph(session, 1);
+        if (session.state.wordIndex == before)
+            return;
+
+        pagePreview_ = false;
+        lastTapValid_ = false;
+        if (session.playing)
+            session.lastAdvanceMs = nowMs; // Show the new word for its full duration.
+        ReadingProgress::save(session, preferences, true, nowMs);
+    }
+
     void ReaderScreen::update(Preferences& preferences, uint32_t nowMs) {
         if (wpmFeedbackUntilMs_ > 0 && nowMs >= wpmFeedbackUntilMs_) {
             wpmFeedbackUntilMs_ = 0;
