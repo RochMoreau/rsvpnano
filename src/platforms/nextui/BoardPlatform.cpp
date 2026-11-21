@@ -3,6 +3,7 @@
 #include "board/BoardConfig.h"
 #include "board/BoardDisplay.h"
 #include "board/BoardImu.h"
+#include "board/BoardIndicators.h"
 #include "board/BoardInput.h"
 #include "board/BoardPower.h"
 #include "board/BoardStorage.h"
@@ -12,6 +13,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -20,8 +22,10 @@
 
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <unistd.h>
 
 #include "platforms/nextui/NextUiDisplay.h"
+#include "platforms/nextui/NextUiFeedback.h"
 #include "platforms/nextui/NextUiHost.h"
 
 // -------------------------------------------------------------------------------------------------
@@ -113,7 +117,7 @@ namespace Board::Input {
         if (held & ButtonSelect)
             actions.longPress |= ::Input::ActionStandby;
         if (held & ButtonPower) {
-            actions.shortPress |= ::Input::ActionStandby;
+            actions.shortPress |= ::Input::ActionSleep; // screen off and suspend, like NextUI
             actions.longPress |= ::Input::ActionPowerOff;
         }
         return actions;
@@ -283,24 +287,63 @@ namespace Board::System {
 
     void begin() {}
 
+    // Sleep like NextUI does: backlight off at once ("hybrid" sleep), then after NextUI's suspend
+    // timeout the system suspends (NextUI's own suspend script) until the power key is pressed.
+    // While charging the Brick stays in hybrid sleep, as NextUI does.
     EspLightSleep::WakeReason lightSleep(uint32_t timeoutMs) {
         using clock = std::chrono::steady_clock;
+        using std::chrono::milliseconds;
+        const int backlight = NextUiFeedback::backlight();
+        NextUiFeedback::end(); // NextUI's LEDs while asleep
+        NextUiFeedback::sleepPulse();
         NextUiHost::setBacklight(false);
+        NextUiFeedback::setBacklight(0);
+        ESP_LOGI("sleep", "screen off (backlight was %d)", backlight);
+
         const auto start = clock::now();
-        // Wait for every button to be released first, then for a new press.
-        while (NextUiHost::buttonsHeld() != 0 && !NextUiHost::quitRequested())
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
-        EspLightSleep::WakeReason reason = EspLightSleep::WakeReason::timer;
-        while (!NextUiHost::quitRequested()) {
-            if (timeoutMs != 0 && clock::now() - start >= std::chrono::milliseconds(timeoutMs))
-                break;
-            if (NextUiHost::buttonsHeld() != 0) {
-                reason = EspLightSleep::WakeReason::input;
+        const uint32_t suspendAfterSecs = NextUiFeedback::suspendTimeoutSecs();
+        auto suspendAt = start + std::chrono::seconds(suspendAfterSecs);
+        const auto powerHeld = [] {
+            return (NextUiHost::buttonsHeld() & NextUiHost::ButtonPower) != 0;
+        };
+        // The press that put us to sleep must be released before a new one can wake us.
+        while (powerHeld() && !NextUiHost::quitRequested())
+            std::this_thread::sleep_for(milliseconds(20));
+
+        EspLightSleep::WakeReason reason = EspLightSleep::WakeReason::input;
+        while (!NextUiHost::quitRequested() && !powerHeld()) {
+            const auto now = clock::now();
+            if (timeoutMs != 0 && now - start >= milliseconds(timeoutMs)) {
+                reason = EspLightSleep::WakeReason::timer;
                 break;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            if (suspendAfterSecs > 0 && now >= suspendAt) {
+                if (Board::Power::externalPowerPresent()) {
+                    suspendAt = now + std::chrono::seconds(60); // charging: check again in a minute
+                    continue;
+                }
+                const char* system = std::getenv("SYSTEM_PATH");
+                const std::string script = std::string{system != nullptr ? system : ""} + "/bin/suspend";
+                if (system != nullptr && access(script.c_str(), X_OK) == 0) {
+                    ESP_LOGI("sleep", "suspending");
+                    const int result = std::system(("\"" + script + "\"").c_str());
+                    ESP_LOGI("sleep", "resumed (%d)", result);
+                    break; // The power key woke the system.
+                }
+                suspendAt = clock::time_point::max(); // No suspend script: stay in hybrid sleep.
+            }
+            std::this_thread::sleep_for(milliseconds(50));
         }
+
+        if (reason == EspLightSleep::WakeReason::timer)
+            return reason; // The firmware powers off (returns to NextUI) next.
+        NextUiFeedback::setBacklight(8); // NextUI wakes the Brick's panel at a low level first.
+        NextUiFeedback::setBacklight(backlight > 0 ? backlight : 128);
         NextUiHost::setBacklight(true);
+        NextUiHost::afterWake();
+        NextUiFeedback::begin();
+        NextUiFeedback::sleepPulse();
+        ESP_LOGI("sleep", "awake");
         return reason;
     }
 
@@ -317,7 +360,7 @@ namespace Board::System {
 } // namespace Board::System
 
 // -------------------------------------------------------------------------------------------------
-// No IMU and no audio codec are exposed to the firmware on this platform.
+// No IMU on this platform. Audio and status lights go through NextUiFeedback.
 // -------------------------------------------------------------------------------------------------
 namespace Board::Imu {
     bool available() {
@@ -345,15 +388,23 @@ namespace Board::Imu {
 
 namespace Board::Audio {
     bool begin() {
-        return false;
+        return true;
     }
+    // The firmware beeps when a focus or break phase ends: chime, rumble and LEDs on the Brick.
     bool beep() {
-        return false;
+        NextUiFeedback::alarm();
+        return true;
     }
     bool available() {
-        return false;
+        return true;
     }
 } // namespace Board::Audio
+
+namespace Board::Indicators {
+    void show(const State& state) {
+        NextUiFeedback::showIndicators(state);
+    }
+} // namespace Board::Indicators
 
 // PdfConverter opens documents through the firmware's VFS mount point ("/sdcard/library/...").
 const char* rsvp_host_vfs_path(const char* path) {

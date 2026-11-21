@@ -44,15 +44,15 @@ namespace {
 
     constexpr Row kMenus[] = {
         {"D-pad", "Move the yellow frame"},
-        {"A", "Select   (A + D-pad: drag)"},
-        {"B", "Back"},
+        {"A / B", "Select / back   (A + D-pad: drag)"},
         {"Left/Right", "Adjust a slider, change book"},
         {"L1 / R1", "Swipe left / right"},
     };
 
     constexpr Row kAnytime[] = {
         {"Y", "Show this screen"},
-        {"Select", "Hold: standby"},
+        {"Power", "Sleep   (hold: quit)"},
+        {"Select", "Hold: screensaver"},
         {"Menu", "Menu   (hold: save and quit)"},
     };
 

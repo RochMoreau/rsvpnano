@@ -31,7 +31,10 @@
 #include <unistd.h>
 
 #include "platforms/nextui/NextUiDisplay.h"
+#include "platforms/nextui/NextUiFeedback.h"
 #include "platforms/nextui/NextUiHelp.h"
+
+#include <qrcodegen.h>
 #include "platforms/nextui/NextUiNavigator.h"
 #include <RsvpRuntime.h>
 #include "ui/Ui.h"
@@ -70,7 +73,10 @@ namespace {
     std::atomic<bool> gRestart{false};
     std::atomic<bool> gBacklight{true};
     std::atomic<bool> gHelpVisible{false};  // Controls cheat sheet on screen.
-    std::atomic<bool> gHelpSuppress{false}; // Swallow buttons until all are released after it closes.
+    std::atomic<bool> gHelpSuppress{false}; // Swallow buttons until all are released (help, wake).
+    std::atomic<bool> gResetButtons{false};
+    std::mutex gQrMutex;
+    std::string gQrText;
 
     std::mutex gTouchMutex;
     ui::TouchContact gTouch{};
@@ -409,6 +415,8 @@ namespace {
         SDL_Renderer* renderer = nullptr;
         SDL_Texture* texture = nullptr;
         SDL_Texture* helpTexture = nullptr;
+        std::string qrText_;
+        std::vector<uint8_t> qrCode_;
         SDL_Rect viewport{};
         bool integerScale_ = true;
 
@@ -495,9 +503,58 @@ namespace {
                 if (uint16_t* pixels = canvas.getFramebuffer())
                     SDL_UpdateTexture(texture, nullptr, pixels, NextUiHost::kPanelWidth * 2);
                 SDL_RenderCopy(renderer, texture, nullptr, &viewport);
+                drawQrCode();
                 drawOverlay(navigator);
             }
             SDL_RenderPresent(renderer);
+        }
+
+        // QR code centred near the bottom of the panel, in panel coordinates scaled like the frame.
+        void drawQrCode() {
+            std::string text;
+            {
+                const std::lock_guard lock{gQrMutex};
+                text = gQrText;
+            }
+            if (text.empty())
+                return;
+            if (text != qrText_) {
+                qrText_ = text;
+                std::vector<uint8_t> temp(qrcodegen_BUFFER_LEN_MAX);
+                qrCode_.assign(qrcodegen_BUFFER_LEN_MAX, 0);
+                if (!qrcodegen_encodeText(text.c_str(), temp.data(), qrCode_.data(), qrcodegen_Ecc_MEDIUM,
+                                          qrcodegen_VERSION_MIN, 10, qrcodegen_Mask_AUTO, true)) {
+                    qrCode_.clear();
+                }
+            }
+            if (qrCode_.empty())
+                return;
+            const int modules = qrcodegen_getSize(qrCode_.data());
+            constexpr int kQuietZone = 2;
+            const int modulePx = std::max(2, 120 / (modules + kQuietZone * 2));
+            const int side = (modules + kQuietZone * 2) * modulePx;
+            const int left = (NextUiHost::kPanelWidth - side) / 2;
+            const int top = NextUiHost::kPanelHeight - side - 14;
+            const auto toScreen = [&](int x, int y, int w, int h) {
+                const int x0 = viewport.x + x * viewport.w / NextUiHost::kPanelWidth;
+                const int y0 = viewport.y + y * viewport.h / NextUiHost::kPanelHeight;
+                const int x1 = viewport.x + (x + w) * viewport.w / NextUiHost::kPanelWidth;
+                const int y1 = viewport.y + (y + h) * viewport.h / NextUiHost::kPanelHeight;
+                return SDL_Rect{x0, y0, x1 - x0, y1 - y0};
+            };
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            const SDL_Rect background = toScreen(left, top, side, side);
+            SDL_RenderFillRect(renderer, &background);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+            for (int y = 0; y < modules; ++y) {
+                for (int x = 0; x < modules; ++x) {
+                    if (!qrcodegen_getModule(qrCode_.data(), x, y))
+                        continue;
+                    const SDL_Rect module = toScreen(left + (x + kQuietZone) * modulePx,
+                                                     top + (y + kQuietZone) * modulePx, modulePx, modulePx);
+                    SDL_RenderFillRect(renderer, &module);
+                }
+            }
         }
 
         bool showHelp() {
@@ -588,6 +645,16 @@ namespace NextUiHost {
         gQuit = true;
     }
 
+    void setQrCode(std::string_view text) {
+        const std::lock_guard lock{gQrMutex};
+        gQrText = text;
+    }
+
+    void afterWake() {
+        gHelpSuppress = true;
+        gResetButtons = true;
+    }
+
     bool quitRequested() {
         return gQuit.load();
     }
@@ -661,6 +728,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     SDL_ShowCursor(gOptions.fullscreen ? SDL_DISABLE : SDL_ENABLE);
+    NextUiFeedback::begin();
 
     Presenter presenter;
     if (!presenter.create()) {
@@ -690,6 +758,12 @@ int main(int argc, char** argv) {
         gHelpVisible = true;
 
     while (!gQuit.load()) {
+        if (gResetButtons.exchange(false)) {
+            keyboardButtons = joystickButtons = hatState = axisButtons = controllerButtons = 0;
+            gDeviceButtons = 0;
+            lastRawButtons = 0;
+            navigator.reset(0);
+        }
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -868,6 +942,7 @@ int main(int argc, char** argv) {
         SDL_Delay(8);
     }
 
+    NextUiFeedback::end();
     for (SDL_GameController* controller: controllers)
         SDL_GameControllerClose(controller);
     for (SDL_Joystick* joystick: joysticks)

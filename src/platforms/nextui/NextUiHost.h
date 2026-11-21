@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 #include <string>
 
 #include "ui/Touch.h"
@@ -47,7 +48,12 @@ namespace NextUiHost {
     // Virtual touch contact synthesized from the controller (focus navigation) or a mouse.
     bool touchContact(ui::TouchContact& contact);
 
+    // Shows a QR code of text near the bottom of the screen (empty: none), e.g. the Sync address.
+    void setQrCode(std::string_view text);
     void requestQuit();
+    // After a suspend: forget held buttons (their releases may have been lost) and ignore input
+    // until every button is released, so the wake press does nothing in the app.
+    void afterWake();
     bool quitRequested();
     void setBacklight(bool on);
     void setBrightness(uint8_t percent);

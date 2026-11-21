@@ -21,38 +21,39 @@ hardware could add. Roughly in priority order.
   job) instead of the firmware's Wi-Fi picker, saved network and update-check options.
 - The Device tab drops USB transfer, RSS, OTA and encryption, which have no NextUI equivalent.
 
+### Sleep, rumble, sound, LEDs, QR code
+- Power sleeps like NextUI: backlight off at once, then NextUI's suspend script after its suspend
+  timeout (not while charging). Rumble on sleep/wake follows NextUI's haptics setting.
+- Focus timers work without a motion sensor: A on the hourglass starts, pauses and resumes a phase
+  (`focus::Session::manualFlip`, usable by any board without an IMU).
+- Phase ends chime through SDL audio, rumble and blink the LEDs. The top bar LED shows book
+  progress while reading and breathes during focus sessions (`Board::Indicators`); NextUI's own LED
+  settings come back otherwise.
+- The Sync screen shows a QR code of its address.
+
 ## Next
 
 ### Wi-Fi follow-ups
 - RSS feed sync (needs HTTPS: libcurl/OpenSSL on the device).
-- Advertise the Brick over mDNS (`rsvp-nano-XXXXXX.local`) so the address need not be typed.
-- Show a QR code of the address on the Sync screen.
+- Advertise the Brick over mDNS (`rsvp-nano-XXXXXX.local`).
 
 ### Controls follow-ups
 - Direct button handling for sliders and steppers instead of A + D-pad dragging.
 - Chapter jumps (for example Select + L1 / R1).
+- Optional end-of-chapter cue (rumble / chime) while reading.
 
-### 3. Sharper text
+### Sharper text
 The UI renders at 640 × 480 and is scaled to the 1024 × 768 panel, so text is slightly soft.
 Render the reader (or at least the current word) at the panel's native resolution.
 
-### 4. Rumble and sound instead of the beeper
-The Brick has a vibration motor and a speaker. Use them for focus-timer alarms and
-end-of-chapter alerts.
-
-### 5. LED strips
-Show reading progress or the remaining focus time on the Brick's RGB LEDs.
-
 ## To check on hardware
 
-### 6. Sleep and battery
-Power currently opens the app's own standby screen, which keeps the system awake. Hook into
-NextUI's suspend instead, and verify the battery reading on the device.
+- Sleep and wake through NextUI's suspend script, rumble strength, chime volume and LED colours.
+- Battery percentage and charging state (read from `/sys/class/power_supply/axp2202-*`).
 
-### 7. Updates
+### Updates
 There is no built-in updater. Publish the pak to NextUI's Pak Store so updates come from there.
 
 ## Won't do
 
-- Motion sensor features (flip to start a focus timer): the Brick has no IMU.
 - USB mass storage: the Brick's USB port is not exposed as a gadget under NextUI.

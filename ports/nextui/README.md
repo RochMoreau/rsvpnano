@@ -39,19 +39,36 @@ again.
 | **L1 / R1** | Previous / next sentence (keeps playing) | Swipe left / right |
 | **L2 / R2** | Previous / next paragraph (keeps playing) | Swipe down / up |
 | **Y** | Show the controls screen | Show the controls screen |
-| **Select (hold)** | Standby (screensaver) | Standby |
-| **Power** | Standby (hold: quit) | |
+| **Select (hold)** | Screensaver | Screensaver |
+| **Power** | Sleep (hold: quit) | Sleep (hold: quit) |
 | **Menu** (TrimUI key) | Open the menu (hold: save and quit to NextUI) | Back to the reader (hold: save and quit) |
 
 A and B follow NextUI's layout (A confirms, B goes back). If they are swapped on your device,
 add `export RSVP_SWAP_AB=1` near the top of `launch.sh`.
+
+## Sleep, focus timers, rumble, sound and LEDs
+
+- **Power** turns the screen off at once and saves your place. After NextUI's suspend timeout
+  (NextUI settings) the Brick suspends with NextUI's own suspend script; press Power to wake up.
+  While charging it stays in screen-off sleep, as NextUI does. Holding Power quits to NextUI.
+- **Focus timers** work without the motion sensor: open a timer, then press **A** on the
+  hourglass to start, pause or resume a phase (where other readers are turned over).
+- When a focus or break phase ends, the Brick **chimes** (system volume), **rumbles** three
+  times and **blinks** its LEDs.
+- **LEDs**: while a book plays, the top bar shows how far you are (red at the start, amber half
+  way, green at the end). During a focus session it breathes red (focus) or blue (break). Otherwise,
+  and when you quit or sleep, NextUI's own LED settings apply. LED brightness stays NextUI's setting
+  (LedControl), so LEDs set to brightness 0 stay off.
+- Rumble on sleep and wake follows NextUI's haptics setting.
+- To turn a channel off, add `export RSVP_RUMBLE=0`, `RSVP_SOUND=0` or `RSVP_LEDS=0` to `launch.sh`.
 
 ## Sending books over Wi-Fi
 
 1. Turn on Wi-Fi in NextUI's settings and connect the Brick to your network.
 2. In RSVP Nano, open the menu → **Device → Companion sync**. The screen shows an address such as
    `http://192.168.1.23`.
-3. Open that address in a browser on a phone or computer on the same network. Choose or drop
+3. Scan the QR code on that screen, or open the address in a browser on a phone or computer on
+   the same network. Choose or drop
    books (EPUB, PDF, RSVP, TXT, Markdown, HTML); the page also lists and deletes the books on the
    Brick. EPUBs and PDFs are converted on the Brick the first time you open them.
 4. Press **B** on the Brick to close Sync. The server only runs while that screen is open.
@@ -62,8 +79,7 @@ settings too, but converts EPUBs in the browser first.
 
 ## Not available on the Brick
 
-USB mass storage, OTA updates, USB (serial) companion, RSS sync, the motion sensor (focus
-timers can't detect when the device is flipped) and the beeper have no NextUI equivalent yet.
+USB mass storage, OTA updates, USB (serial) companion and RSS sync have no NextUI equivalent yet.
 Their buttons are left out of the Device tab. Wi-Fi is set up in NextUI, not in RSVP Nano:
 **Settings → Network & updates** only shows the connection NextUI made. To update, install a newer
 pak. Screen brightness stays under NextUI's own control (Menu + volume).

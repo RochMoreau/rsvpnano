@@ -24,6 +24,7 @@
 #include "board/BoardStorage.h"
 #include "companion/http/CompanionUpload.h"
 #include "logging/Logger.h"
+#include "platforms/nextui/NextUiHost.h"
 #include "platforms/nextui/NextUiNetwork.h"
 #include "storage/fs/StorageFiles.h"
 #include "storage/fs/StoragePaths.h"
@@ -229,8 +230,9 @@ bool CompanionApi::begin() {
 
     accessPointSsid_ = "RSVP-Nano-" + deviceSuffix();
     stationUrl_ = serverUrl(address, nextui_httpd_port(server_));
-    statusLine1_ = "Open in a browser:";
+    statusLine1_ = "Scan, or open in a browser:";
     statusLine2_ = stationUrl_;
+    NextUiHost::setQrCode(stationUrl_);
     active_.store(true);
     ESP_LOGI(kTag, "ready url=%s", stationUrl_.c_str());
     Logger::checkpoint("companion_sync");
@@ -241,6 +243,7 @@ void CompanionApi::end() {
     Logger::checkpoint("companion_stop");
     active_.store(false);
     stationConnected_.store(false);
+    NextUiHost::setQrCode({});
     // Unlike the ESP32 (which keeps its httpd task for the firmware's lifetime), close the port
     // whenever Sync is not open. httpd_stop waits for an in-flight request to finish.
     stopServer();

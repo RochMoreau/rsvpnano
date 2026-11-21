@@ -35,7 +35,7 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake zip libsdl2-dev imagemagick
+          sudo apt-get install -y cmake zip libsdl2-dev imagemagick zbar-tools
           pip install ziglang
 
       - name: Cache third-party sources and the TrimUI SDK
@@ -81,6 +81,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: https://example.com' "$URL/api/v2/library")" = 403
           wait $APP
           convert smoke/shots/sync.bmp smoke/shots/sync.png
+          zbarimg -q smoke/shots/sync.png | grep -qF "QR-Code:$URL"
 
       - name: TrimUI Brick pak
         run: ports/nextui/build.sh pak

@@ -22,6 +22,7 @@ set(PORT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(RSVP_DEPS_DIR "${CMAKE_CURRENT_BINARY_DIR}/_deps" CACHE PATH "Where third-party sources are fetched")
 set(ARDUINO_GFX_REV dd977b70828545c23d2b73140ac02d716a11bdd3)
 set(GLAZE_REV v7.9.1)
+set(QRCODEGEN_REV v1.8.0)
 set(IMPROV_REV 17898613a1c17062ca5af295ceb639b16b4930bf)
 
 # Logical UI resolution; the host scales it to the screen (TrimUI Brick: 1024x768).
@@ -48,6 +49,7 @@ endfunction()
 fetch_git(arduino_gfx https://github.com/moononournation/Arduino_GFX.git ${ARDUINO_GFX_REV})
 fetch_git(glaze https://github.com/stephenberry/glaze.git ${GLAZE_REV})
 fetch_git(improv https://github.com/improv-wifi/sdk-cpp.git ${IMPROV_REV})
+fetch_git(qrcodegen https://github.com/nayuki/QR-Code-generator.git ${QRCODEGEN_REV}) # Sync screen QR code (MIT)
 
 # Same signed-coordinate fix the firmware build applies (tools/pio_gfx.py).
 set(GFX_PATCHED "${CMAKE_CURRENT_BINARY_DIR}/generated/Arduino_GFX.cpp")
@@ -117,7 +119,7 @@ target_link_libraries(rsvp_pdfio PUBLIC rsvp_zlib m)
 file(GLOB_RECURSE FIRMWARE_SOURCES CONFIGURE_DEPENDS ${RSVP_SRC}/*.cpp)
 # Same exclusions as [common] base_src_filter, plus the modules replaced by stubs/.
 list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(ui/screens/watch|benchmark|companion_api_test|platforms|drivers)/")
-list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(usb|network|sleep|logging/Logger\\.cpp|companion/http/CompanionApi\\.cpp|ui/screens/regular/(NetworkSettings|Device)Screen\\.cpp|companion/serial/CompanionSerial\\.cpp|update/OtaUpdater|settings/NvsSecurity|feeds/RssFeeds)")
+list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(usb|network|sleep|logging/Logger\\.cpp|board/BoardIndicators\\.cpp|companion/http/CompanionApi\\.cpp|ui/screens/regular/(NetworkSettings|Device)Screen\\.cpp|companion/serial/CompanionSerial\\.cpp|update/OtaUpdater|settings/NvsSecurity|feeds/RssFeeds)")
 
 file(GLOB PLATFORM_SOURCES CONFIGURE_DEPENDS ${RSVP_SRC}/platforms/nextui/*.cpp)
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS ${PORT_DIR}/runtime/*.cpp ${PORT_DIR}/stubs/*.cpp)
@@ -128,7 +130,8 @@ add_executable(rsvpnano
     ${RUNTIME_SOURCES}
     ${GFX_PATCHED}
     ${arduino_gfx_DIR}/src/Arduino_G.cpp
-    ${arduino_gfx_DIR}/src/canvas/Arduino_Canvas.cpp)
+    ${arduino_gfx_DIR}/src/canvas/Arduino_Canvas.cpp
+    ${qrcodegen_DIR}/c/qrcodegen.c)
 
 target_include_directories(rsvpnano PRIVATE
     ${PORT_DIR}/shim
@@ -137,7 +140,8 @@ target_include_directories(rsvpnano PRIVATE
     ${RSVP_ROOT}
     ${arduino_gfx_DIR}/src
     ${glaze_DIR}/include
-    ${improv_DIR}/src)
+    ${improv_DIR}/src
+    ${qrcodegen_DIR}/c)
 
 target_compile_definitions(rsvpnano PRIVATE
     RSVP_NEXTUI=1
