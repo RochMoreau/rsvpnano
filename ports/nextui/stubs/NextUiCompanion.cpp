@@ -13,10 +13,6 @@
 #include <esp_log.h>
 #include <glaze/net/url.hpp>
 
-#include <arpa/inet.h>
-#include <ifaddrs.h>
-#include <net/if.h>
-#include <netinet/in.h>
 
 #include <atomic>
 #include <cstdio>
@@ -28,6 +24,7 @@
 #include "board/BoardStorage.h"
 #include "companion/http/CompanionUpload.h"
 #include "logging/Logger.h"
+#include "platforms/nextui/NextUiNetwork.h"
 #include "storage/fs/StorageFiles.h"
 #include "storage/fs/StoragePaths.h"
 #include "update/OtaUpdater.h"
@@ -45,32 +42,6 @@ namespace {
         const std::atomic_bool* active = nullptr;
     };
     UploadContext gUpload;
-
-    // First IPv4 address of an interface that is up, preferring Wi-Fi (wlan*). Empty if offline.
-    std::string networkAddress() {
-        ifaddrs* interfaces = nullptr;
-        if (getifaddrs(&interfaces) != 0)
-            return {};
-        std::string found;
-        bool foundWireless = false;
-        for (const ifaddrs* entry = interfaces; entry != nullptr; entry = entry->ifa_next) {
-            if (entry->ifa_addr == nullptr || entry->ifa_addr->sa_family != AF_INET)
-                continue;
-            if ((entry->ifa_flags & IFF_UP) == 0 || (entry->ifa_flags & IFF_LOOPBACK) != 0)
-                continue;
-            char text[INET_ADDRSTRLEN]{};
-            const auto* address = reinterpret_cast<const sockaddr_in*>(entry->ifa_addr);
-            if (inet_ntop(AF_INET, &address->sin_addr, text, sizeof(text)) == nullptr)
-                continue;
-            const bool wireless = std::string_view{entry->ifa_name}.starts_with("wlan");
-            if (found.empty() || (wireless && !foundWireless)) {
-                found = text;
-                foundWireless = wireless;
-            }
-        }
-        freeifaddrs(interfaces);
-        return found;
-    }
 
     esp_err_t sendText(httpd_req_t* request, const char* status, const char* type, std::string_view body) {
         httpd_resp_set_status(request, status);
@@ -230,7 +201,7 @@ bool CompanionApi::begin() {
     Logger::checkpoint("companion_start");
     stationConnected_.store(false);
 
-    const std::string address = networkAddress();
+    const std::string address = NextUiNetwork::address();
     if (address.empty()) {
         statusLine1_ = "No Wi-Fi connection";
         statusLine2_ = "Connect in NextUI settings";

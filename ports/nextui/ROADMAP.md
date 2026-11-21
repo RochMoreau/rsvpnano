@@ -16,6 +16,11 @@ hardware could add. Roughly in priority order.
   stopping playback (new `Input` actions, usable by any board with spare buttons).
 - Holding Up / Down repeats the speed change.
 
+### Screens for what the Brick can do
+- Settings → Network & updates shows the connection NextUI made (Wi-Fi and updates are NextUI's
+  job) instead of the firmware's Wi-Fi picker, saved network and update-check options.
+- The Device tab drops USB transfer, RSS, OTA and encryption, which have no NextUI equivalent.
+
 ## Next
 
 ### Wi-Fi follow-ups

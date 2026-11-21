@@ -5,7 +5,9 @@ project(rsvp_nano_nextui C CXX)
 # The firmware sources under ../../src are compiled unchanged against a small Arduino/ESP-IDF
 # compatibility layer (shim/ + runtime/). Hardware features with no Linux equivalent
 # (USB mass storage, OTA, serial companion) are replaced by stubs/; the Wi-Fi companion runs on
-# runtime/HttpServer.cpp with stubs/NextUiCompanion.cpp in place of CompanionApi.cpp.
+# runtime/HttpServer.cpp with stubs/NextUiCompanion.cpp in place of CompanionApi.cpp, and
+# stubs/NextUiNetworkScreen.cpp and NextUiDeviceScreen.cpp replace the Wi-Fi / update settings and
+# Device screens (NextUI owns Wi-Fi and updates; USB transfer, RSS and encryption are unavailable).
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -115,7 +117,7 @@ target_link_libraries(rsvp_pdfio PUBLIC rsvp_zlib m)
 file(GLOB_RECURSE FIRMWARE_SOURCES CONFIGURE_DEPENDS ${RSVP_SRC}/*.cpp)
 # Same exclusions as [common] base_src_filter, plus the modules replaced by stubs/.
 list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(ui/screens/watch|benchmark|companion_api_test|platforms|drivers)/")
-list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(usb|network|sleep|logging/Logger\\.cpp|companion/http/CompanionApi\\.cpp|companion/serial/CompanionSerial\\.cpp|update/OtaUpdater|settings/NvsSecurity|feeds/RssFeeds)")
+list(FILTER FIRMWARE_SOURCES EXCLUDE REGEX "/src/(usb|network|sleep|logging/Logger\\.cpp|companion/http/CompanionApi\\.cpp|ui/screens/regular/(NetworkSettings|Device)Screen\\.cpp|companion/serial/CompanionSerial\\.cpp|update/OtaUpdater|settings/NvsSecurity|feeds/RssFeeds)")
 
 file(GLOB PLATFORM_SOURCES CONFIGURE_DEPENDS ${RSVP_SRC}/platforms/nextui/*.cpp)
 file(GLOB RUNTIME_SOURCES CONFIGURE_DEPENDS ${PORT_DIR}/runtime/*.cpp ${PORT_DIR}/stubs/*.cpp)

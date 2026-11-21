@@ -64,7 +64,9 @@ settings too, but converts EPUBs in the browser first.
 
 USB mass storage, OTA updates, USB (serial) companion, RSS sync, the motion sensor (focus
 timers can't detect when the device is flipped) and the beeper have no NextUI equivalent yet.
-Their menu entries show "not available". To update, install a newer pak. Screen brightness stays under NextUI's own control (Menu + volume).
+Their buttons are left out of the Device tab. Wi-Fi is set up in NextUI, not in RSVP Nano:
+**Settings → Network & updates** only shows the connection NextUI made. To update, install a newer
+pak. Screen brightness stays under NextUI's own control (Menu + volume).
 
 ## Build
 
