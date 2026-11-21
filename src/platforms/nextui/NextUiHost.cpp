@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "platforms/nextui/NextUiDisplay.h"
+#include "platforms/nextui/NextUiHelp.h"
 #include "platforms/nextui/NextUiNavigator.h"
 #include <RsvpRuntime.h>
 #include "ui/Ui.h"
@@ -50,6 +51,13 @@ namespace {
         int scale = 2;
         bool fullscreen = false;
         int logLevel = 3;
+        // Read the pad by its raw button numbers, like NextUI does, instead of SDL's Xbox-style
+        // game controller layout (which puts "A" on the bottom face button).
+        bool rawJoystick = false;
+        // Swap the A and B face buttons, for pads that use the other layout.
+        bool swapAB = false;
+        // Show the controls cheat sheet on start-up until it has been dismissed once.
+        bool controlsHelp = true;
     };
 
     Options gOptions;
@@ -61,6 +69,8 @@ namespace {
     std::atomic<bool> gQuit{false};
     std::atomic<bool> gRestart{false};
     std::atomic<bool> gBacklight{true};
+    std::atomic<bool> gHelpVisible{false};  // Controls cheat sheet on screen.
+    std::atomic<bool> gHelpSuppress{false}; // Swallow buttons until all are released after it closes.
 
     std::mutex gTouchMutex;
     ui::TouchContact gTouch{};
@@ -84,9 +94,13 @@ namespace {
     void usage(const char* program) {
         std::fprintf(stderr,
                      "usage: %s [--data DIR] [--state DIR] [--log FILE] [--fullscreen] [--scale N]\n"
-                     "          [--log-level 0-5] [--script COMMANDS]\n"
+                     "          [--log-level 0-5] [--raw-joystick] [--swap-ab] [--no-controls-help]\n"
+                     "          [--script COMMANDS]\n"
                      "  --data   folder used as the reader's SD card (library/, config/, themes/...)\n"
                      "  --state  folder for preferences and other device state (default: DATA/.state)\n"
+                     "  --raw-joystick  read pad buttons by number (TrimUI layout, as NextUI does)\n"
+                     "  --swap-ab       swap the A and B buttons (also RSVP_SWAP_AB=1)\n"
+                     "  --no-controls-help  don't show the controls screen on start-up\n"
                      "  --script semicolon-separated test commands: wait MS; press BTN; hold BTN MS;\n"
                      "           down BTN; up BTN; tap X Y; shot FILE.bmp; quit\n",
                      program);
@@ -97,6 +111,7 @@ namespace {
         gOptions.dataRoot = envOr("RSVP_DATA_DIR", sdcard.empty() ? "./sdcard" : sdcard + "/RSVP Nano");
         gOptions.stateRoot = envOr("RSVP_STATE_DIR", "");
         gOptions.fullscreen = std::getenv("DEVICE") != nullptr;
+        gOptions.swapAB = envOr("RSVP_SWAP_AB", "0") == "1";
         for (int i = 1; i < argc; ++i) {
             const std::string arg = argv[i];
             auto value = [&](std::string& out) {
@@ -130,6 +145,12 @@ namespace {
                 gOptions.fullscreen = true;
             } else if (arg == "--windowed") {
                 gOptions.fullscreen = false;
+            } else if (arg == "--raw-joystick") {
+                gOptions.rawJoystick = true;
+            } else if (arg == "--swap-ab") {
+                gOptions.swapAB = true;
+            } else if (arg == "--no-controls-help") {
+                gOptions.controlsHelp = false;
             } else {
                 return false;
             }
@@ -387,6 +408,7 @@ namespace {
         SDL_Window* window = nullptr;
         SDL_Renderer* renderer = nullptr;
         SDL_Texture* texture = nullptr;
+        SDL_Texture* helpTexture = nullptr;
         SDL_Rect viewport{};
         bool integerScale_ = true;
 
@@ -464,6 +486,10 @@ namespace {
             layout();
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
             SDL_RenderClear(renderer);
+            if (gHelpVisible.load() && showHelp()) {
+                SDL_RenderPresent(renderer);
+                return;
+            }
             if (gBacklight.load()) {
                 auto& canvas = NextUiDisplay::canvas();
                 if (uint16_t* pixels = canvas.getFramebuffer())
@@ -472,6 +498,22 @@ namespace {
                 drawOverlay(navigator);
             }
             SDL_RenderPresent(renderer);
+        }
+
+        bool showHelp() {
+            if (helpTexture == nullptr) {
+                const uint16_t* pixels = NextUiHelp::render();
+                if (pixels == nullptr)
+                    return false;
+                helpTexture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STATIC,
+                                                NextUiHost::kPanelWidth, NextUiHost::kPanelHeight);
+                if (helpTexture == nullptr)
+                    return false;
+                SDL_UpdateTexture(helpTexture, nullptr, pixels, NextUiHost::kPanelWidth * 2);
+            }
+            SDL_SetTextureScaleMode(helpTexture, integerScale_ ? SDL_ScaleModeNearest : SDL_ScaleModeLinear);
+            SDL_RenderCopy(renderer, helpTexture, nullptr, &viewport);
+            return true;
         }
 
         void drawOverlay(const NextUiNavigator& navigator) {
@@ -529,6 +571,9 @@ namespace NextUiHost {
     }
 
     uint32_t buttonsHeld() {
+        // While the controls screen is up (and until its buttons are released) the firmware sees nothing.
+        if (gHelpVisible.load() || gHelpSuppress.load())
+            return gInjectedButtons.load();
         return gDeviceButtons.load() | gScriptButtons.load() | gInjectedButtons.load();
     }
 
@@ -563,6 +608,22 @@ namespace NextUiDisplay {
         return instance;
     }
 } // namespace NextUiDisplay
+
+namespace {
+    std::string helpMarkerPath() {
+        return gOptions.stateRoot + "/controls-help-seen";
+    }
+
+    bool helpSeen() {
+        std::error_code error;
+        return std::filesystem::exists(helpMarkerPath(), error);
+    }
+
+    void markHelpSeen() {
+        if (FILE* file = std::fopen(helpMarkerPath().c_str(), "w"))
+            std::fclose(file);
+    }
+} // namespace
 
 namespace rsvp_runtime {
     void restartRequested() {
@@ -624,6 +685,9 @@ int main(int argc, char** argv) {
     uint32_t quitInjectedAtMs = 0;
     bool lastBacklight = true;
     bool overlayDirty = true;
+    uint32_t lastRawButtons = 0;
+    if (gOptions.controlsHelp && !helpSeen())
+        gHelpVisible = true;
 
     while (!gQuit.load()) {
         SDL_Event event;
@@ -643,6 +707,8 @@ int main(int argc, char** argv) {
                 }
                 break;
             case SDL_CONTROLLERDEVICEADDED:
+                if (gOptions.rawJoystick)
+                    break;
                 if (SDL_GameController* controller = SDL_GameControllerOpen(event.cdevice.which)) {
                     ESP_LOGI("host", "controller: %s", SDL_GameControllerName(controller));
                     controllers.push_back(controller);
@@ -656,7 +722,7 @@ int main(int argc, char** argv) {
                 break;
             }
             case SDL_JOYDEVICEADDED:
-                if (!SDL_IsGameController(event.jdevice.which)) {
+                if (gOptions.rawJoystick || !SDL_IsGameController(event.jdevice.which)) {
                     if (SDL_Joystick* joystick = SDL_JoystickOpen(event.jdevice.which)) {
                         ESP_LOGI("host", "joystick: %s", SDL_JoystickName(joystick));
                         joysticks.push_back(joystick);
@@ -712,7 +778,35 @@ int main(int argc, char** argv) {
         }
 
         const uint32_t now = static_cast<uint32_t>(millis());
-        gDeviceButtons = keyboardButtons | joystickButtons | hatState | axisButtons | controllerButtons;
+        uint32_t padButtons = joystickButtons | controllerButtons;
+        if (gOptions.swapAB)
+            padButtons = (padButtons & ~(ButtonA | ButtonB)) | ((padButtons & ButtonA) ? ButtonB : 0)
+                       | ((padButtons & ButtonB) ? ButtonA : 0);
+        gDeviceButtons = keyboardButtons | padButtons | hatState | axisButtons;
+
+        // Controls cheat sheet: Y opens it, A / B / Y close it.
+        {
+            const uint32_t raw = gDeviceButtons.load() | gScriptButtons.load();
+            const uint32_t pressed = raw & ~lastRawButtons;
+            lastRawButtons = raw;
+            if (gHelpVisible.load()) {
+                if (pressed & (ButtonA | ButtonB | ButtonY)) {
+                    gHelpVisible = false;
+                    gHelpSuppress = true;
+                    markHelpSeen();
+                    overlayDirty = true;
+                }
+            } else if (!gHelpSuppress.load() && (pressed & ButtonY)) {
+                gHelpVisible = true;
+                gHelpSuppress = true;
+                navigator.reset(0);
+                overlayDirty = true;
+            }
+            if (gHelpSuppress.load() && raw == 0) {
+                gHelpSuppress = false;
+                navigator.reset(0);
+            }
+        }
         if (quitInjectedAtMs != 0 && now - quitInjectedAtMs > 5000) {
             ESP_LOGW("host", "app did not power off in time; exiting");
             gQuit = true;

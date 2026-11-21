@@ -13,4 +13,6 @@ LOG_FILE="${LOGS_PATH:-$STATE_DIR}/RSVP Nano.txt"
 mkdir -p "$DATA_DIR/library/books" "$STATE_DIR" "$(dirname "$LOG_FILE")"
 export LD_LIBRARY_PATH="$PAK_DIR/lib:/usr/trimui/lib:$LD_LIBRARY_PATH"
 
-./rsvpnano --fullscreen --data "$DATA_DIR" --state "$STATE_DIR" --log "$LOG_FILE" > /dev/null 2>&1
+# --raw-joystick reads the buttons by number, as NextUI does, so A and B match the rest of the
+# system. If they are swapped on your device, set RSVP_SWAP_AB=1 (or add --swap-ab).
+./rsvpnano --fullscreen --raw-joystick --data "$DATA_DIR" --state "$STATE_DIR" --log "$LOG_FILE" > /dev/null 2>&1

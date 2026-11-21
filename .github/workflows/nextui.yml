@@ -52,10 +52,11 @@ jobs:
           mkdir -p smoke/sdcard/library/books smoke/shots
           cp companion/testdata/conversion/sample.epub smoke/sdcard/library/books/
           SDL_VIDEODRIVER=dummy timeout 60 build/nextui-desktop/rsvpnano --data smoke/sdcard \
-            --script "wait 2000; shot smoke/shots/reader.bmp; press start; wait 800; shot smoke/shots/menu.bmp; \
+            --script "wait 2000; shot smoke/shots/controls.bmp; press a; wait 300; shot smoke/shots/reader.bmp; press menu; wait 800; shot smoke/shots/menu.bmp; \
                       press down; press right; press a; wait 1200; shot smoke/shots/library.bmp; quit"
           for f in smoke/shots/*.bmp; do convert "$f" "${f%.bmp}.png"; done
           test -s smoke/sdcard/library/books/sample.rsvp
+          test -f smoke/sdcard/.state/controls-help-seen
 
       - name: TrimUI Brick pak
         run: ports/nextui/build.sh pak

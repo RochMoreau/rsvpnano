@@ -94,8 +94,9 @@ namespace Board::Input {
             actions.shortPress |= ::Input::ActionSelect | ::Input::ActionPlayPause;
         if (held & ButtonB)
             actions.shortPress |= ::Input::ActionBack;
+        // Start is the Brick's play/pause key; the TrimUI (Menu) key opens the menu.
         if (held & ButtonStart)
-            actions.shortPress |= ::Input::ActionOpenMenu;
+            actions.shortPress |= ::Input::ActionPlayPause;
         if (held & ButtonMenu) {
             actions.shortPress |= ::Input::ActionOpenMenu;
             actions.longPress |= ::Input::ActionPowerOff;

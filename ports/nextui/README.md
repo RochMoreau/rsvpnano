@@ -20,6 +20,10 @@ NextUI's logs folder (`RSVP Nano.txt`).
 ## Controls
 
 The firmware was designed for a touchscreen. The pak drives that touch UI from the buttons.
+A controls screen appears the first time you launch the pak; press **Y** at any time to see it
+again.
+
+![Controls screen](controls.png)
 
 | Button | Reader | Menus |
 | --- | --- | --- |
@@ -27,14 +31,18 @@ The firmware was designed for a touchscreen. The pak drives that touch UI from t
 | **A** | Press like a finger: hold to read while held, double-tap to play | Activate the focused item |
 | **A + D-pad** | Drag | Drag (sliders, the library shelf) |
 | **←/→ on a slider, stepper or shelf** | | Change the value / select the previous or next book |
+| **Start** (play/pause key) | Play / pause | |
 | **X** | Play / pause | |
 | **B** | Back to the menu | Back |
-| **Start** | Open the menu | Back to the reader |
 | **L1 / R1** | Swipe left / right | Swipe left / right |
 | **L2 / R2** | Swipe down / up | Swipe down / up |
+| **Y** | Show the controls screen | Show the controls screen |
 | **Select (hold)** | Standby (screensaver) | Standby |
 | **Power** | Standby (hold: quit) | |
-| **Menu** | Open the menu (hold: save and quit to NextUI) | Hold: save and quit |
+| **Menu** (TrimUI key) | Open the menu (hold: save and quit to NextUI) | Back to the reader (hold: save and quit) |
+
+A and B follow NextUI's layout (A confirms, B goes back). If they are swapped on your device,
+add `export RSVP_SWAP_AB=1` near the top of `launch.sh`.
 
 ## Not available on the Brick
 
