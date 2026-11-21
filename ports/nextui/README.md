@@ -14,6 +14,8 @@ small Linux layer stands in for the ESP32, and an SDL2 host handles the screen a
    PDFs are converted the first time you open them.
 4. Open **Tools → RSVP Nano**.
 
+You can also send books over Wi-Fi, see below.
+
 Reading positions and preferences are stored in `.userdata/tg5040/RSVP Nano/`. The log is in
 NextUI's logs folder (`RSVP Nano.txt`).
 
@@ -27,15 +29,15 @@ again.
 
 | Button | Reader | Menus |
 | --- | --- | --- |
-| **D-pad** | ←/→ scrub words · ↑/↓ change speed (page preview: browse paragraphs) | Move the focus (yellow frame) |
+| **D-pad** | ←/→ scrub words · ↑/↓ change speed, repeats while held (page preview: browse paragraphs) | Move the focus (yellow frame) |
 | **A** | Press like a finger: hold to read while held, double-tap to play | Activate the focused item |
 | **A + D-pad** | Drag | Drag (sliders, the library shelf) |
 | **←/→ on a slider, stepper or shelf** | | Change the value / select the previous or next book |
 | **Start** (play/pause key) | Play / pause | |
 | **X** | Play / pause | |
 | **B** | Back to the menu | Back |
-| **L1 / R1** | Swipe left / right | Swipe left / right |
-| **L2 / R2** | Swipe down / up | Swipe down / up |
+| **L1 / R1** | Previous / next sentence (keeps playing) | Swipe left / right |
+| **L2 / R2** | Previous / next paragraph (keeps playing) | Swipe down / up |
 | **Y** | Show the controls screen | Show the controls screen |
 | **Select (hold)** | Standby (screensaver) | Standby |
 | **Power** | Standby (hold: quit) | |
@@ -44,12 +46,25 @@ again.
 A and B follow NextUI's layout (A confirms, B goes back). If they are swapped on your device,
 add `export RSVP_SWAP_AB=1` near the top of `launch.sh`.
 
+## Sending books over Wi-Fi
+
+1. Turn on Wi-Fi in NextUI's settings and connect the Brick to your network.
+2. In RSVP Nano, open the menu → **Device → Companion sync**. The screen shows an address such as
+   `http://192.168.1.23`.
+3. Open that address in a browser on a phone or computer on the same network. Choose or drop
+   books (EPUB, PDF, RSVP, TXT, Markdown, HTML); the page also lists and deletes the books on the
+   Brick. EPUBs and PDFs are converted on the Brick the first time you open them.
+4. Press **B** on the Brick to close Sync. The server only runs while that screen is open.
+
+The [web companion](https://ionutdecebal.github.io/rsvpnano/) can also connect to that address
+(desktop Chrome or Edge; allow local network access when asked). It manages themes, fonts and
+settings too, but converts EPUBs in the browser first.
+
 ## Not available on the Brick
 
-USB mass storage, OTA updates, the Wi-Fi companion server, RSS sync, the motion sensor (focus
+USB mass storage, OTA updates, USB (serial) companion, RSS sync, the motion sensor (focus
 timers can't detect when the device is flipped) and the beeper have no NextUI equivalent yet.
-Their menu entries show "not available". To add books, copy them to the SD card. To update, install
-a newer pak. Screen brightness stays under NextUI's own control (Menu + volume).
+Their menu entries show "not available". To update, install a newer pak. Screen brightness stays under NextUI's own control (Menu + volume).
 
 ## Build
 

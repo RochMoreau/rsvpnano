@@ -58,6 +58,30 @@ jobs:
           test -s smoke/sdcard/library/books/sample.rsvp
           test -f smoke/sdcard/.state/controls-help-seen
 
+      - name: Wi-Fi sync smoke test (headless)
+        run: |
+          mkdir -p sync/sdcard/library
+          # Menu -> Device tab -> Companion sync; the server listens on 8080 without root.
+          SDL_VIDEODRIVER=dummy timeout 90 build/nextui-desktop/rsvpnano --data sync/sdcard --no-controls-help \
+            --script "wait 2500; press menu; wait 800; tap 70 300; wait 800; tap 480 170; wait 1500; \
+                      shot smoke/shots/sync.bmp; wait 20000; press b; wait 1000; quit" > sync/app.log 2>&1 &
+          APP=$!
+          URL=
+          for i in $(seq 40); do
+            URL=$(grep -oE 'url=http://[^ ]+' sync/app.log | cut -d= -f2 || true)
+            [ -n "$URL" ] && break
+            sleep 0.5
+          done
+          test -n "$URL" || { cat sync/app.log; exit 1; }
+          curl -fsS "$URL/api/v2/device"
+          curl -fsS "$URL/" | grep -q "Choose books"
+          curl -fsS --data-binary @companion/testdata/conversion/sample.epub "$URL/upload?name=My%20sample.epub"
+          test -s "sync/sdcard/library/books/My sample.epub"
+          curl -fsS "$URL/api/v2/library" | grep -q "My sample.epub"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Origin: https://example.com' "$URL/api/v2/library")" = 403
+          wait $APP
+          convert smoke/shots/sync.bmp smoke/shots/sync.png
+
       - name: TrimUI Brick pak
         run: ports/nextui/build.sh pak
 

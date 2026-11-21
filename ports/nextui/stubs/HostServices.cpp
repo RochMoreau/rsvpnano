@@ -43,39 +43,7 @@ const char* UsbMassStorageManager::statusMessage() const {
     return statusMessage_;
 }
 
-// --- Companion Wi-Fi server and serial protocol. ---
-bool CompanionApi::begin() {
-    statusLine1_ = "Wireless sync is not available";
-    statusLine2_ = "Copy books to the SD card";
-    return false;
-}
-
-void CompanionApi::end() {
-    active_ = false;
-}
-
-bool CompanionApi::active() const {
-    return false;
-}
-
-void CompanionApi::renderStatus(bool) {}
-
-std::string_view CompanionApi::statusLine1() const {
-    return statusLine1_;
-}
-
-std::string_view CompanionApi::statusLine2() const {
-    return statusLine2_;
-}
-
-void* httpd_get_global_user_ctx(httpd_handle_t) {
-    return nullptr;
-}
-
-esp_err_t httpd_resp_set_hdr(httpd_req_t*, const char*, const char*) {
-    return ESP_ERR_NOT_SUPPORTED;
-}
-
+// --- Companion serial protocol (USB): not available. Wi-Fi sync is in NextUiCompanion.cpp. ---
 void CompanionSerial::update(uint32_t) {}
 
 void CompanionSerial::close() {
